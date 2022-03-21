@@ -260,7 +260,7 @@ impl Axes3D
 
 	/// Like `set_x_ticks` but for the Z axis.
 	pub fn set_z_ticks<'l>(
-		&'l mut self, tick_placement: Option<(AutoOption<f64>, u32)>,
+		&'l mut self, tick_placement: Option<(AutoOption<f64>, AutoOption<u32>)>,
 		tick_options: &[TickOption<&str>], label_options: &[LabelOption<&str>],
 	) -> &'l mut Self
 	{

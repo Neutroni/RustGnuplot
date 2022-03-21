@@ -757,7 +757,7 @@ pub enum TickType
 {
 	None,
 	Custom(Vec<Tick<f64, String>>),
-	Auto(AutoOption<f64>, u32),
+	Auto(AutoOption<f64>, AutoOption<u32>),
 }
 
 pub struct AxisData
@@ -785,7 +785,7 @@ impl AxisData
 		AxisData {
 			tick_options: vec![],
 			label_options: vec![],
-			tick_type: TickType::Auto(Auto, 0),
+			tick_type: TickType::Auto(Auto, Auto),
 			log_base: None,
 			axis,
 			min: Auto,
@@ -861,7 +861,14 @@ impl AxisData
 				}
 				else
 				{
-					writeln!(w, "{}", mticks as i32 + 1);
+					match mticks {
+						Fix(value) => {
+							writeln!(w, "{}", value as i32 + 1);
+						}
+						Auto => {
+							writeln!(w, "default");
+						}
+					}
 				}
 			}
 			_ =>
@@ -1056,7 +1063,7 @@ impl AxisData
 	}
 
 	pub fn set_ticks(
-		&mut self, tick_placement: Option<(AutoOption<f64>, u32)>,
+		&mut self, tick_placement: Option<(AutoOption<f64>, AutoOption<u32>)>,
 		tick_options: Vec<TickOption<String>>, label_options: Vec<LabelOption<String>>,
 	)
 	{
@@ -1644,8 +1651,8 @@ pub trait AxesCommon: AxesCommonPrivate
 	/// # Arguments
 	/// * `tick_placement` - Controls the placement of the ticks. Pass `None` to hide the ticks. Otherwise, the first tuple value controls the spacing
 	///                      of the major ticks (in axes units), otherwise set it to `Auto` to let gnuplot decide the spacing automatically. The second
-	///                      tuple value specifies the number of minor ticks. For logarithmic axes, non-zero values mean that the number of ticks usually
-	///                      equals to `ceil(log_base) - 2`.
+	///                      tuple value specifies the number of minor ticks, otherwise set it to `Auto` to let gnuplot decide the amount of minor ticks.
+	/// 	                 For logarithmic axes, non-zero values mean that the number of ticks usually equals to `ceil(log_base) - 2`.
 	/// * `tick_options` - Array of TickOption controlling the appearance of the ticks
 	/// * `label_options` - Array of LabelOption<&str> controlling the appearance of the tick labels. Relevant options are:
 	///      * `Offset` - Specifies the offset of the label
@@ -1654,7 +1661,7 @@ pub trait AxesCommon: AxesCommonPrivate
 	///      * `Rotate` - Specifies the rotation of the label
 	///      * `Align` - Specifies how to align the label
 	fn set_x_ticks<'l>(
-		&'l mut self, tick_placement: Option<(AutoOption<f64>, u32)>,
+		&'l mut self, tick_placement: Option<(AutoOption<f64>, AutoOption<u32>)>,
 		tick_options: &[TickOption<&str>], label_options: &[LabelOption<&str>],
 	) -> &'l mut Self
 	{
@@ -1668,7 +1675,7 @@ pub trait AxesCommon: AxesCommonPrivate
 
 	/// Like `set_x_ticks` but for the Y axis.
 	fn set_y_ticks<'l>(
-		&'l mut self, tick_placement: Option<(AutoOption<f64>, u32)>,
+		&'l mut self, tick_placement: Option<(AutoOption<f64>, AutoOption<u32>)>,
 		tick_options: &[TickOption<&str>], label_options: &[LabelOption<&str>],
 	) -> &'l mut Self
 	{
@@ -1684,7 +1691,7 @@ pub trait AxesCommon: AxesCommonPrivate
 	///
 	/// Note that by default, these are hidden.
 	fn set_x2_ticks<'l>(
-		&'l mut self, tick_placement: Option<(AutoOption<f64>, u32)>,
+		&'l mut self, tick_placement: Option<(AutoOption<f64>, AutoOption<u32>)>,
 		tick_options: &[TickOption<&str>], label_options: &[LabelOption<&str>],
 	) -> &'l mut Self
 	{
@@ -1700,7 +1707,7 @@ pub trait AxesCommon: AxesCommonPrivate
 	///
 	/// Note that by default, these are hidden.
 	fn set_y2_ticks<'l>(
-		&'l mut self, tick_placement: Option<(AutoOption<f64>, u32)>,
+		&'l mut self, tick_placement: Option<(AutoOption<f64>, AutoOption<u32>)>,
 		tick_options: &[TickOption<&str>], label_options: &[LabelOption<&str>],
 	) -> &'l mut Self
 	{
@@ -1714,7 +1721,7 @@ pub trait AxesCommon: AxesCommonPrivate
 
 	/// Like `set_x_ticks` but for the color bar axis.
 	fn set_cb_ticks<'l>(
-		&'l mut self, tick_placement: Option<(AutoOption<f64>, u32)>,
+		&'l mut self, tick_placement: Option<(AutoOption<f64>, AutoOption<u32>)>,
 		tick_options: &[TickOption<&str>], label_options: &[LabelOption<&str>],
 	) -> &'l mut Self
 	{
