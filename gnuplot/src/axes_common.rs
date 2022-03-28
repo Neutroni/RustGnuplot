@@ -861,11 +861,14 @@ impl AxisData
 				}
 				else
 				{
-					match mticks {
-						Fix(value) => {
+					match mticks
+					{
+						Fix(value) =>
+						{
 							writeln!(w, "{}", value as i32 + 1);
 						}
-						Auto => {
+						Auto =>
+						{
 							writeln!(w, "default");
 						}
 					}
