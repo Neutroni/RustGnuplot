@@ -1655,7 +1655,7 @@ pub trait AxesCommon: AxesCommonPrivate
 	/// * `tick_placement` - Controls the placement of the ticks. Pass `None` to hide the ticks. Otherwise, the first tuple value controls the spacing
 	///                      of the major ticks (in axes units), otherwise set it to `Auto` to let gnuplot decide the spacing automatically. The second
 	///                      tuple value specifies the number of minor ticks, otherwise set it to `Auto` to let gnuplot decide the amount of minor ticks.
-	/// 	                 For logarithmic axes, non-zero values mean that the number of ticks usually equals to `ceil(log_base) - 2`.
+	///                      For logarithmic axes, non-zero values mean that the number of ticks usually equals to `ceil(log_base) - 2`.
 	/// * `tick_options` - Array of TickOption controlling the appearance of the ticks
 	/// * `label_options` - Array of LabelOption<&str> controlling the appearance of the tick labels. Relevant options are:
 	///      * `Offset` - Specifies the offset of the label
