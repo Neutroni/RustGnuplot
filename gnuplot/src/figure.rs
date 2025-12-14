@@ -12,7 +12,7 @@ use crate::options::{GnuplotVersion, MultiplotFillDirection, MultiplotFillOrder}
 use crate::util::escape;
 use crate::writer::Writer;
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::str;
@@ -99,6 +99,11 @@ impl CloseSentinel
 		CloseSentinel { gnuplot }
 	}
 
+	pub fn stdout(&mut self) -> Option<impl Read>
+	{
+		self.gnuplot.stdout.take()
+	}
+
 	/// Waits until the gnuplot process exits. See `std::process::Child::wait`.
 	pub fn wait(&mut self) -> std::io::Result<std::process::ExitStatus>
 	{
@@ -121,6 +126,12 @@ impl Drop for CloseSentinel
 	}
 }
 
+pub enum OutPutStream
+{
+	Inherit,
+	Piped,
+}
+
 /// A figure that may contain multiple axes.
 pub struct Figure
 {
@@ -128,6 +139,7 @@ pub struct Figure
 	terminal: String,
 	enhanced_text: bool,
 	output_file: Option<PathBuf>,
+	output_stream: OutPutStream,
 	post_commands: String,
 	pre_commands: String,
 	// RefCell so that we can echo to it
@@ -165,6 +177,7 @@ impl Figure
 			terminal: "".into(),
 			enhanced_text: true,
 			output_file: None,
+			output_stream: OutPutStream::Inherit,
 			gnuplot: None,
 			post_commands: "".into(),
 			pre_commands: "".into(),
@@ -230,6 +243,13 @@ impl Figure
 		{
 			Some(output_file.into())
 		};
+		self
+	}
+
+	// Set where gnuplot output should be streamed to
+	pub fn set_output_stream(&mut self, output_stream: OutPutStream) -> &mut Figure
+	{
+		self.output_stream = output_stream;
 		self
 	}
 
@@ -382,6 +402,23 @@ impl Figure
 		self
 	}
 
+	fn update_cached_version(&mut self) -> std::io::Result<()>
+	{
+		let output = Command::new("gnuplot").arg("--version").output()?;
+		if let Ok(version_string) = str::from_utf8(&output.stdout)
+		{
+			let parts: Vec<_> = version_string.split([' ', '.']).collect();
+			if parts.len() > 2 && parts[0] == "gnuplot"
+			{
+				if let (Ok(major), Ok(minor)) = (parts[1].parse::<i32>(), parts[2].parse::<i32>())
+				{
+					self.version = Some(GnuplotVersion { major, minor });
+				}
+			}
+		}
+		Ok(())
+	}
+
 	/// Launch a gnuplot process, if it hasn't been spawned already by a call to
 	/// this function, and display the figure on it.
 	///
@@ -397,20 +434,7 @@ impl Figure
 
 		if self.version.is_none()
 		{
-			let output = Command::new("gnuplot").arg("--version").output()?;
-
-			if let Ok(version_string) = str::from_utf8(&output.stdout)
-			{
-				let parts: Vec<_> = version_string.split([' ', '.']).collect();
-				if parts.len() > 2 && parts[0] == "gnuplot"
-				{
-					if let (Ok(major), Ok(minor)) =
-						(parts[1].parse::<i32>(), parts[2].parse::<i32>())
-					{
-						self.version = Some(GnuplotVersion { major, minor });
-					}
-				}
-			}
+			self.update_cached_version()?
 		}
 
 		if self.gnuplot.is_none()
@@ -419,6 +443,11 @@ impl Figure
 				Command::new("gnuplot")
 					.arg("-p")
 					.stdin(Stdio::piped())
+					.stdout(match self.output_stream
+					{
+						OutPutStream::Inherit => Stdio::inherit(),
+						OutPutStream::Piped => Stdio::piped(),
+					})
 					.spawn()
 					.expect(
 						"Couldn't spawn gnuplot. Make sure it is installed and available in PATH.",
@@ -456,6 +485,36 @@ impl Figure
 			writeln!(stdin, "quit");
 		};
 		Ok(CloseSentinel::new(gnuplot))
+	}
+
+	pub fn output_string(&mut self) -> Result<String, GnuplotInitError>
+	{
+		if self.axes.is_empty()
+		{
+			return Ok("".to_string());
+		}
+
+		if self.version.is_none()
+		{
+			self.update_cached_version()?
+		}
+
+		let mut gnuplot = Command::new("gnuplot")
+			.arg("-p")
+			.stdin(Stdio::piped())
+			.stdout(Stdio::piped())
+			.spawn()
+			.expect("Couldn't spawn gnuplot. Make sure it is installed and available in PATH.");
+
+		let stdin = gnuplot.stdin.as_mut().expect("No stdin!?");
+		self.echo(stdin);
+		writeln!(stdin, "pause mouse close");
+		writeln!(stdin, "quit");
+		stdin.flush();
+
+		let output = gnuplot.wait_with_output()?;
+		let o = output.stdout.as_slice();
+		Ok(String::from_utf8_lossy(o).to_string())
 	}
 
 	/// Save the figure to a png file.
